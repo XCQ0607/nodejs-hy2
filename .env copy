@@ -6,19 +6,18 @@
 # 自定义订阅链接的路径，增加隐蔽性
 # 例如设置为 "mysecret"，则订阅地址为 http://IP:PORT/mysecret
 # 默认值: sub
-SUB_PATH=sub
+SUB_PATH=xcq0607
 
 # 2. Argo Token (ARGO_TOKEN)
 # Cloudflare Tunnel Token。
 # 如果填写此项，将启动固定隧道模式。
 # 如果留空，将启动临时隧道模式 (Quick Tunnel)。
-ARGO_TOKEN=
-
+ARGO_TOKEN=eyJhIjoiODdkODI1N2ZhZGNhMDJhNGYzMjVkNjE4MjY3MDE3ZWQiLCJ0IjoiNTk3NDViN2EtODc1ZS00Nzc1LTgzNzItZjc1MWM0YjI0ZTU1IiwicyI6IlkyTmxZV05oTWpBdE9UUXhOaTAwTUdOa0xXRTFNVGd0TkRNeFptVTBOalZqWlRsbSJ9
 # 3. Argo 固定域名 (ARGO_DOMAIN)
 # 您的 Cloudflare Tunnel 绑定的 Public Hostname (例如: tunnel.example.com)。
 # 当使用 ARGO_TOKEN 模式时，建议填写此项以便生成正确的订阅链接。
 # 注意：您需要在 Cloudflare Zero Trust 后台将该域名指向 http://localhost:3001
-ARGO_DOMAIN=
+ARGO_DOMAIN=hidencloud.xcqgo.de5.net
 
 # 4. 协议选择 (UDP_TYPE)
 # 选择 UDP 节点的协议类型。
@@ -30,7 +29,7 @@ UDP_TYPE=hy2
 # 自定义 Cloudflare 优选域名或 IP 列表，用于生成的 Argo 订阅链接。
 # 多个域名请用逗号分隔。
 # 默认值: 内置的优选域名列表
-CFIP=
+CFIP=cf.090227.xyz
 
 # 6. 端口配置
 # HY2_PORT/UDP_PORT: UDP 协议 (Hy2/Tuic) 监听端口，同时也是 HTTP 订阅服务监听端口 (TCP)。
@@ -39,4 +38,4 @@ CFIP=
 
 # ARGO_PORT: VLESS-WS (TCP) 本地监听端口，供 Cloudflare Tunnel 连接。
 # 默认值: 3001
-ARGO_PORT=3001
+ARGO_PORT=3000
