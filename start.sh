@@ -3,12 +3,14 @@ set -e
 
 # ================== 核心配置区域 (环境变量优先) ==================
 
-# 0. 加载本地 .env 文件 (如果存在)
+# 0. 加载本地 .env 文件 (兼容 Windows CRLF 换行符)
 if [ -f .env ]; then
     set -a
-    source .env
+    # 使用 tr 删除回车符 (\r) 后再 source，避免 command not found 错误
+    source <(tr -d '\r' < .env)
     set +a
 fi
+
 
 # 1. 订阅路径 (环境变量: SUB_PATH)
 SUB_PATH="${SUB_PATH:-sub}"
