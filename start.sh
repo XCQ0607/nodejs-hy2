@@ -31,11 +31,60 @@ UDP_TYPE="${UDP_TYPE:-hy2}"
 UDP_TYPE="${UDP_TYPE,,}"
 if [[ "$UDP_TYPE" != "tuic" ]]; then UDP_TYPE="hy2"; fi
 
-# 6. 端口配置 (环境变量优先，默认值 3000 / 3001)
-# UDP_PORT: Hysteria2/Tuic (UDP) 端口，同时也是 HTTP 订阅服务 (TCP) 端口
-# ARGO_PORT: Vless-WS (TCP) 端口，用于 Cloudflare Tunnel 后端连接
-UDP_PORT="${HY2_PORT:-3000}"
-ARGO_PORT="${ARGO_PORT:-3001}"
+# ================== 端口自动检测 ==================
+# 检查端口是否被占用 (TCP)
+is_port_busy() {
+    local port=$1
+    # 尝试连接本地端口，如果成功(exit 0)说明被占用
+    # 优先使用 timeout 防止连接挂起
+    if command -v timeout >/dev/null 2>&1; then
+        (timeout 0.5 bash -c "</dev/tcp/127.0.0.1/$port") 2>/dev/null
+    else
+        (bash -c "</dev/tcp/127.0.0.1/$port") 2>/dev/null
+    fi
+}
+
+# 寻找可用端口
+# 参数1: 偏好端口
+# 参数2: 排除端口 (可选)
+find_available_port() {
+    local port=$1
+    local exclude=${2:-0}
+    
+    while true; do
+        # 跳过排除端口
+        if [ "$port" -eq "$exclude" ]; then
+            port=$((port + 1))
+            continue
+        fi
+        
+        if is_port_busy "$port"; then
+            echo "[端口] $port 被占用，尝试下一个..." >&2
+            port=$((port + 1))
+        else
+            echo "$port"
+            return 0
+        fi
+        
+        # 防止死循环（上限 65535）
+        if [ "$port" -gt 65535 ]; then
+            echo "[错误] 未找到可用端口 (上限 65535)" >&2
+            exit 1
+        fi
+    done
+}
+
+# 6. 端口配置
+# 优先级: 环境变量 -> 默认值 -> 自动递增寻找可用端口
+USE_HY2_PORT="${HY2_PORT:-${UDP_PORT:-3000}}"
+USE_ARGO_PORT="${ARGO_PORT:-3001}"
+
+echo "[端口] 检测可用性 (起始端口: Hy2=$USE_HY2_PORT, Argo=$USE_ARGO_PORT)..."
+HY2_PORT=$(find_available_port "$USE_HY2_PORT")
+echo "[端口] 确认 Hy2/Web 端口: $HY2_PORT"
+
+ARGO_PORT=$(find_available_port "$USE_ARGO_PORT" "$HY2_PORT")
+echo "[端口] 确认 Argo Tunnel 端口: $ARGO_PORT"
 
 # ================== CF 优选域名列表 ==================
 if [ -n "$CFIP" ]; then
@@ -81,7 +130,15 @@ echo "[CF优选] $BEST_CF_DOMAIN"
 
 # ================== UUID ==================
 UUID_FILE="${FILE_PATH}/uuid.txt"
-[ -f "$UUID_FILE" ] && UUID=$(cat "$UUID_FILE") || { UUID=$(cat /proc/sys/kernel/random/uuid); echo "$UUID" > "$UUID_FILE"; }
+if [ -n "$UUID" ]; then
+    echo "[UUID] 使用环境变量预设 UUID"
+    echo "$UUID" > "$UUID_FILE"
+elif [ -f "$UUID_FILE" ]; then
+    UUID=$(cat "$UUID_FILE")
+else
+    UUID=$(cat /proc/sys/kernel/random/uuid)
+    echo "$UUID" > "$UUID_FILE"
+fi
 echo "[UUID] $UUID"
 
 # ================== 架构检测 & 下载 ==================
@@ -120,10 +177,10 @@ generate_sub() {
     
     # UDP 节点 (Tuic 或 Hy2)
     if [ "$UDP_TYPE" == "tuic" ]; then
-        echo "tuic://${UUID}:admin@${PUBLIC_IP}:${UDP_PORT}?sni=www.bing.com&alpn=h3&congestion_control=bbr&allowInsecure=1#Tuic-Node" >> "${FILE_PATH}/list.txt"
+        echo "tuic://${UUID}:admin@${PUBLIC_IP}:${HY2_PORT}?sni=www.bing.com&alpn=h3&congestion_control=bbr&allowInsecure=1#Tuic-Node" >> "${FILE_PATH}/list.txt"
     else
         # 默认 Hy2
-        echo "hysteria2://${UUID}@${PUBLIC_IP}:${UDP_PORT}/?sni=www.bing.com&insecure=1#Hysteria2-Node" >> "${FILE_PATH}/list.txt"
+        echo "hysteria2://${UUID}@${PUBLIC_IP}:${HY2_PORT}/?sni=www.bing.com&insecure=1#Hysteria2-Node" >> "${FILE_PATH}/list.txt"
     fi
     
     # Argo VLESS (WS) on ARGO_PORT (proxied via Tunnel)
@@ -133,7 +190,7 @@ generate_sub() {
 }
 
 # ================== HTTP 服务器脚本 ==================
-# 监听 UDP_PORT (TCP)，因为 UDP 只占用了 UDP 协议，端口复用
+# 监听 HY2_PORT (TCP)，因为 UDP 只占用了 UDP 协议，端口复用
 cat > "${FILE_PATH}/server.js" <<JSEOF
 const http = require('http');
 const fs = require('fs');
@@ -160,14 +217,14 @@ server.listen(port, '0.0.0.0', () => console.log('HTTP Sub running on port ' + p
 JSEOF
 
 # ================== 启动 HTTP 订阅服务 ==================
-# 将 HTTP 服务绑定在 UDP_PORT (TCP) 上
-echo "[HTTP] 启动订阅服务 (端口 $UDP_PORT)..."
-PORT=$UDP_PORT node "${FILE_PATH}/server.js" &
+# 将 HTTP 服务绑定在 HY2_PORT (TCP) 上
+echo "[HTTP] 启动订阅服务 (端口 $HY2_PORT)..."
+PORT=$HY2_PORT node "${FILE_PATH}/server.js" &
 HTTP_PID=$!
 sleep 1
 # 检查进程是否存活
 if kill -0 $HTTP_PID 2>/dev/null; then
-  echo "[HTTP] 订阅服务已启动: http://${PUBLIC_IP}:${UDP_PORT}/${SUB_PATH}"
+  echo "[HTTP] 订阅服务已启动: http://${PUBLIC_IP}:${HY2_PORT}/${SUB_PATH}"
 else
   echo "[错误] HTTP 服务启动失败"
 fi
@@ -181,7 +238,7 @@ if [ "$UDP_TYPE" == "tuic" ]; then
         \"type\": \"tuic\",
         \"tag\": \"tuic-in\",
         \"listen\": \"::\",
-        \"listen_port\": ${UDP_PORT},
+        \"listen_port\": ${HY2_PORT},
         \"users\": [{\"uuid\": \"${UUID}\", \"password\": \"admin\"}],
         \"congestion_control\": \"bbr\",
         \"tls\": {
@@ -197,7 +254,7 @@ else
         \"type\": \"hysteria2\",
         \"tag\": \"hy2-in\",
         \"listen\": \"::\",
-        \"listen_port\": ${UDP_PORT},
+        \"listen_port\": ${HY2_PORT},
         \"users\": [{\"password\": \"${UUID}\"}],
         \"tls\": {
             \"enabled\": true,
@@ -277,14 +334,14 @@ fi
 
 # ================== 生成订阅 ==================
 generate_sub "$ARGO_DOMAIN"
-SUB_URL="http://${PUBLIC_IP}:${UDP_PORT}/${SUB_PATH}"
+SUB_URL="http://${PUBLIC_IP}:${HY2_PORT}/${SUB_PATH}"
 
 # ================== 输出结果 ==================
 echo ""
 echo "================= 运行状态 ======================"
 echo "Http订阅地址    : $SUB_URL"
-echo "Http订阅端口    : $UDP_PORT (TCP)"
-echo "UDP服务端口     : $UDP_PORT (UDP) [协议: ${UDP_TYPE^^}]"
+echo "Http订阅端口    : $HY2_PORT (TCP)"
+echo "UDP服务端口     : $HY2_PORT (UDP) [协议: ${UDP_TYPE^^}]"
 echo "Ws服务端口      : $ARGO_PORT (TCP, 仅本地)"
 echo ""
 echo "--- 节点详情 ---"

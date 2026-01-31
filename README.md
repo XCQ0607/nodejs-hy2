@@ -58,6 +58,7 @@ chmod +x start.sh
 | `HY2_PORT` | `3000` | UDP 协议监听端口，同时也是 HTTP 订阅服务端口。 |
 | `ARGO_PORT` | `3001` | Argo Tunnel 后端使用的 VLESS-WS 端口 (TCP)。 |
 | `CFIP` | (内置列表) | 自定义 Argo 节点的 Cloudflare 优选域名/IP。 |
+| `UUID` | (随机生成) | 自定义固定 UUID。如留空则自动生成并持久化。 |
 
 ## 端口映射
 

@@ -58,6 +58,7 @@ The script loads configuration from a `.env` file in the current directory or fr
 | `HY2_PORT` | `3000` | Port for UDP protocol and HTTP subscription service. |
 | `ARGO_PORT` | `3001` | TCP port for VLESS-WS backend used by Cloudflare Tunnel. |
 | `CFIP` | (List) | Custom Cloudflare IP/Domain for Argo nodes. |
+| `UUID` | (Random) | Custom fixed UUID. If empty, auto-generated. |
 
 ## Port Mapping
 
