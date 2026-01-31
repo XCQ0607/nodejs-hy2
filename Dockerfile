@@ -1,6 +1,12 @@
 # 使用 Node.js 轻量级镜像作为基础，因为我们需要运行 HTTP 订阅服务 (server.js)
 FROM node:lts-slim
 
+
+LABEL org.opencontainers.image.source=https://github.com/XCQ0607/nodejs-hy2
+LABEL org.opencontainers.image.description="nodejs hy2 docker image"
+LABEL org.opencontainers.image.licenses=MIT
+
+
 # 设置工作目录
 WORKDIR /app
 
