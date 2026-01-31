@@ -75,16 +75,51 @@ find_available_port() {
 }
 
 # 6. 端口配置
-# 优先级: 环境变量 -> 默认值 -> 自动递增寻找可用端口
-USE_HY2_PORT="${HY2_PORT:-${UDP_PORT:-3000}}"
-USE_ARGO_PORT="${ARGO_PORT:-3001}"
+# ================== 开放端口检测 ==================
+# 优先级: SERVER_PORT 环境变量 -> HY2_PORT/UDP_PORT/ARGO_PORT 环境变量 -> 默认值 -> 自动寻找可用端口
 
-echo "[端口] 检测可用性 (起始端口: Hy2=$USE_HY2_PORT, Argo=$USE_ARGO_PORT)..."
-HY2_PORT=$(find_available_port "$USE_HY2_PORT")
-echo "[端口] 确认 Hy2/Web 端口: $HY2_PORT"
+# 从环境变量读取开放端口列表（空格分隔）
+if [ -n "$SERVER_PORT" ]; then
+    PORTS_STRING="$SERVER_PORT"
+else
+    PORTS_STRING=""
+fi
 
-ARGO_PORT=$(find_available_port "$USE_ARGO_PORT" "$HY2_PORT")
-echo "[端口] 确认 Argo Tunnel 端口: $ARGO_PORT"
+read -ra AVAILABLE_PORTS <<< "$PORTS_STRING"
+PORT_COUNT=${#AVAILABLE_PORTS[@]}
+
+echo "[端口] 开放端口检测: 发现 $PORT_COUNT 个开放端口 ${AVAILABLE_PORTS[*]}"
+
+# 根据开放端口数量决定端口分配策略
+if [ $PORT_COUNT -eq 0 ]; then
+    # 无开放端口：使用环境变量或默认端口，并检测可用性
+    echo "[端口] 未检测到开放端口，使用默认端口配置"
+    USE_HY2_PORT="${HY2_PORT:-${UDP_PORT:-3000}}"
+    USE_ARGO_PORT="${ARGO_PORT:-3001}"
+    
+    echo "[端口] 检测端口可用性 (起始: Hy2=$USE_HY2_PORT, Argo=$USE_ARGO_PORT)..."
+    HY2_PORT=$(find_available_port "$USE_HY2_PORT")
+    echo "[端口] 确认 Hy2/Web 端口: $HY2_PORT"
+    
+    ARGO_PORT=$(find_available_port "$USE_ARGO_PORT" "$HY2_PORT")
+    echo "[端口] 确认 Argo Tunnel 端口: $ARGO_PORT"
+    
+elif [ $PORT_COUNT -eq 1 ]; then
+    # 单开放端口：UDP 和 HTTP 复用该端口（TCP/UDP 协议不冲突）
+    echo "[端口] 单端口模式: ${AVAILABLE_PORTS[0]} (UDP + HTTP 复用)"
+    HY2_PORT=${AVAILABLE_PORTS[0]}
+    
+    # Argo 使用环境变量或默认端口，并检测可用性
+    USE_ARGO_PORT="${ARGO_PORT:-3001}"
+    ARGO_PORT=$(find_available_port "$USE_ARGO_PORT" "$HY2_PORT")
+    echo "[端口] 确认 Argo Tunnel 端口: $ARGO_PORT"
+    
+else
+    # 多开放端口：分别分配
+    echo "[端口] 多端口模式: UDP=${AVAILABLE_PORTS[0]}, Argo=${AVAILABLE_PORTS[1]}"
+    HY2_PORT=${AVAILABLE_PORTS[0]}
+    ARGO_PORT=${AVAILABLE_PORTS[1]}
+fi
 
 # ================== CF 优选域名列表 ==================
 if [ -n "$CFIP" ]; then

@@ -51,6 +51,7 @@ chmod +x start.sh
 
 | 变量名 | 默认值 | 说明 |
 | :--- | :--- | :--- |
+| `SERVER_PORT` | (空) | 云厂商开放端口列表（空格分隔）。一般由云平台自动配置，知道开放端口可手动填写，否则留空。 |
 | `ARGO_TOKEN` | (空) | Cloudflare Tunnel Token。留空则启用临时隧道模式。 |
 | `ARGO_DOMAIN` | (空) | 固定隧道绑定的域名。使用 Token 模式时**强烈建议**填写。 |
 | `UDP_TYPE` | `hy2` | UDP 协议类型，可选 `hy2` 或 `tuic`。 |

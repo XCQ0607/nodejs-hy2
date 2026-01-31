@@ -51,6 +51,7 @@ The script loads configuration from a `.env` file in the current directory or fr
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
+| `SERVER_PORT` | (Empty) | Cloud provider's open port list (space-separated). Usually configured automatically by platforms like Render/Railway. Leave empty unless you know the specific ports. |
 | `ARGO_TOKEN` | (Empty) | Cloudflare Tunnel Token. Leave empty specifically for Quick Tunnel mode. |
 | `ARGO_DOMAIN` | (Empty) | The domain bound to your fixed tunnel. **Highly recommended** when using Token mode. |
 | `UDP_TYPE` | `hy2` | UDP protocol type. Options: `hy2` or `tuic`. |
