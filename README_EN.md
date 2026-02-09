@@ -10,9 +10,35 @@ Key Features:
 - **Flexible Configuration**: Supports environment variables and `.env` file.
 - **Docker Support**: Ready for Docker deployment.
 
+
 ## Quick Start
 
-### 1. Deploy with Docker
+### 1. One-Click Installation (Recommended)
+
+Supports Ubuntu / Debian / CentOS / Alpine.
+
+```bash
+curl -sL https://raw.githubusercontent.com/XCQ0607/nodejs-hy2/main/install.sh | sudo bash
+```
+
+**Custom Parameters**:
+
+```bash
+# Example: Custom UUID and Port
+curl -sL https://raw.githubusercontent.com/XCQ0607/nodejs-hy2/main/install.sh | sudo bash -s UUID=your-uuid HY2_PORT=12345
+
+# Supports all environment variables, for example:
+# curl -sL ... | sudo bash -s \
+#   UUID=... \
+#   HY2_PORT=3000 \
+#   UDP_TYPE=tuic \
+#   ARGO_TOKEN=... \
+#   ARGO_DOMAIN=... \
+#   SUB_PATH=...
+#   (See Configuration section for more details)
+```
+
+### 2. Deploy with Docker
 
 You can run the service with a single command using our pre-built image:
 

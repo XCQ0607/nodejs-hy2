@@ -10,9 +10,35 @@
 - **配置灵活**：支持环境变量及 `.env` 文件配置。
 - **Docker 支持**：提供 Dockerfile，轻松部署。
 
+
 ## 快速开始
 
-### 1. 使用 Docker 部署
+### 1. 一键脚本安装 (推荐)
+
+支持 Ubuntu / Debian / CentOS / Alpine 等主流系统。
+
+```bash
+curl -sL https://raw.githubusercontent.com/XCQ0607/nodejs-hy2/main/install.sh | sudo bash
+```
+
+**自定义参数安装**：
+
+```bash
+# 例如自定义 UUID 和 端口
+curl -sL https://raw.githubusercontent.com/XCQ0607/nodejs-hy2/main/install.sh | sudo bash -s UUID=your-uuid HY2_PORT=12345
+
+# 支持项目中的所有环境变量参数，例如：
+# curl -sL ... | sudo bash -s \
+#   UUID=... \
+#   HY2_PORT=3000 \
+#   UDP_TYPE=tuic \
+#   ARGO_TOKEN=... \
+#   ARGO_DOMAIN=... \
+#   SUB_PATH=...
+#   (更多参数请参考下方配置说明)
+```
+
+### 2. 使用 Docker 部署
 
 我们提供了预构建的 Docker 镜像，只需一条命令即可运行：
 
