@@ -1,9 +1,12 @@
 name: Package Release
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: '发布版本号 (例如 v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 jobs:
   package:
@@ -32,9 +35,12 @@ jobs:
             python-deploy.zip
 
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.inputs.release_version }}
+          name: Release ${{ github.event.inputs.release_version }}
+          draft: false
+          prerelease: false
           files: |
             nodejs-deploy.zip
             python-deploy.zip

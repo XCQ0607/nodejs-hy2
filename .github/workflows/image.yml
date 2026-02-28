@@ -1,12 +1,6 @@
 name: Build and Publish Docker Image
 
 on:
-  push:
-    branches: [ "main" ]
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch: # Allow manual trigger
 
 env:
