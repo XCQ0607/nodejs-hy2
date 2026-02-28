@@ -53,27 +53,29 @@ docker run -d \
   ghcr.io/nodejs-hy2:latest
 ```
 
-### 2. Run Locally / on VPS
+### 3. Deploy via Python Environment (PaaS Platforms Recommended)
 
-Ensure `curl`, `openssl`, and `nodejs` are installed.
+For platforms providing a Python runtime (such as Wasmer, Fly.io, or Heroku). The project supports **fully automated Python bootstrapping**. The system will automatically detect and install necessary dependencies like `bash`, `curl`, and `node`.
+
+1. **Entry Point**: `main.py`
+2. **Start Command**: `python main.py`
+3. **Environment Variables**: Configure them in your platform's dashboard.
 
 ```bash
-# 1. Clone repo
-git clone https://github.com/your-repo/nodejs-hy2.git
-cd nodejs-hy2
-
-# 2. Configure (Optional)
-cp .env.example .env
-nano .env
-
-# 3. Run
-chmod +x start.sh
-./start.sh
+# Test the Python entry locally
+python main.py
 ```
+
+We provide pre-built deployment packages in the [Releases](../../releases) page:
+- **`nodejs-deploy.zip`**: Clean Node.js deployment package.
+- **`python-deploy.zip`**: Deployment package with Python bootstrap support.
 
 ## Configuration
 
 The script loads configuration from a `.env` file in the current directory or from system environment variables.
+
+
+> **Priority**: OS/Platform environment variables (e.g., set via Wasmer dashboard) **ALWAYS** take precedence over values in the `.env` file.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |

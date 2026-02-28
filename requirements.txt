@@ -1,0 +1,2 @@
+# No python dependencies required as we use standard library to wrap shell scripts
+# This file is included to satisfy platform requirements for Python projects.

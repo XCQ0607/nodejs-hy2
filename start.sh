@@ -3,12 +3,23 @@ set -e
 
 # ================== 核心配置区域 (环境变量优先) ==================
 
-# 0. 加载本地 .env 文件 (兼容 Windows CRLF 换行符)
+# 0. 加载本地 .env 文件 (优先级: 系统环境变量 > .env 文件)
 if [ -f .env ]; then
-    set -a
-    # 使用 tr 删除回车符 (\r) 后再 source，避免 command not found 错误
-    source <(tr -d '\r' < .env)
-    set +a
+    echo "[环境] 检测到 .env 文件，正在加载配置..."
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        # 忽略注释、空行和不合法的行
+        [[ $key =~ ^#.* ]] || [[ -z $key ]] && continue
+        # 处理 Windows/Unix 换行符
+        key=$(echo "$key" | tr -d '\r' | xargs)
+        value=$(echo "$value" | tr -d '\r' | xargs)
+        
+        # 只有在系统环境变量中不存在该键时，才从 .env 加载
+        if [ -z "${!key}" ]; then
+            export "$key"="$value"
+        else
+            echo "[环境] 保持系统变量: $key"
+        fi
+    done < .env
 fi
 
 
@@ -254,15 +265,69 @@ JSEOF
 # ================== 启动 HTTP 订阅服务 ==================
 # 将 HTTP 服务绑定在 HY2_PORT (TCP) 上
 echo "[HTTP] 启动订阅服务 (端口 $HY2_PORT)..."
-PORT=$HY2_PORT node "${FILE_PATH}/server.js" &
-HTTP_PID=$!
+
+if command -v node >/dev/null 2>&1; then
+    PORT=$HY2_PORT node "${FILE_PATH}/server.js" &
+    HTTP_PID=$!
+elif command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+    # Node.js 缺失，使用 Python 作为回退方案
+    PY_CMD=$(command -v python3 || command -v python)
+    echo "[HTTP] Node.js 缺失，检测到 Python，使用 Python 启动订阅服务..."
+    
+    cat > "${FILE_PATH}/server.py" <<PYEOF
+import http.server
+import socketserver
+import os
+
+PORT = int(os.environ.get('PORT', 8080))
+SUB_PATH = '/${SUB_PATH}'
+UUID_PATH = '/${UUID}'
+SUB_FILE = '${FILE_PATH}/sub.txt'
+
+class MyHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # 兼容包含 subPath 或 uuidPath 的请求
+        if SUB_PATH in self.path or UUID_PATH in self.path:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain; charset=utf-8')
+            self.end_headers()
+            try:
+                if os.path.exists(SUB_FILE):
+                    with open(SUB_FILE, 'rb') as f:
+                        self.wfile.write(f.read())
+                else:
+                    self.wfile.write(b"Subscription file not ready yet.")
+            except Exception as e:
+                self.wfile.write(f"Error reading subscription: {str(e)}".encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b'404 Not Found')
+
+# 允许端口复用
+socketserver.TCPServer.allow_reuse_address = True
+try:
+    with socketserver.TCPServer(("", PORT), MyHandler) as httpd:
+        print(f"Python HTTP Server running on port {PORT}")
+        httpd.serve_forever()
+except Exception as e:
+    print(f"Python HTTP Server failed: {e}")
+PYEOF
+    PORT=$HY2_PORT $PY_CMD "${FILE_PATH}/server.py" &
+    HTTP_PID=$!
+else
+    echo "[错误] 既无 Node.js 也无 Python，无法启动订阅服务"
+    HTTP_PID=0
+fi
+
 sleep 1
 # 检查进程是否存活
-if kill -0 $HTTP_PID 2>/dev/null; then
+if [ "$HTTP_PID" -ne 0 ] && kill -0 $HTTP_PID 2>/dev/null; then
   echo "[HTTP] 订阅服务已启动: http://${PUBLIC_IP}:${HY2_PORT}/${SUB_PATH}"
 else
-  echo "[错误] HTTP 服务启动失败"
+  echo "[错误] HTTP 服务启动失败，请检查端口是否冲突"
 fi
+
 
 # ================== 生成 sing-box 配置 ==================
 echo "[CONFIG] 生成配置..."

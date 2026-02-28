@@ -1,0 +1,42 @@
+name: Package Release
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Node.js Package
+        run: |
+          mkdir nodejs-deploy
+          cp index.js startup.js start.sh package.json .env.template install.sh Dockerfile README.md README_EN.md nodejs-deploy/
+          zip -r nodejs-deploy.zip nodejs-deploy/
+
+      - name: Create Python Package
+        run: |
+          mkdir python-deploy
+          cp main.py start.sh requirements.txt runtime.txt Procfile .env.template Dockerfile README.md README_EN.md python-deploy/
+          zip -r python-deploy.zip python-deploy/
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-packages
+          path: |
+            nodejs-deploy.zip
+            python-deploy.zip
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            nodejs-deploy.zip
+            python-deploy.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
